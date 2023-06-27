@@ -5,6 +5,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import entities from './configs/db';
 import { UserModule } from './users/user.module';
+import { MemberModule } from './members/member.module';
+import { RoomModule } from './rooms/room.module';
+import { ChannelModule } from './channels/channel.module';
 
 @Module({
   imports: [
@@ -19,7 +22,10 @@ import { UserModule } from './users/user.module';
       entities: [...entities],
       synchronize: true
     }),
-    UserModule
+    UserModule,
+    MemberModule,
+    RoomModule,
+    ChannelModule
   ],
   controllers: [AppController],
   providers: [AppService],
