@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Channel } from './channel.entity';
 import { Repository } from 'typeorm';
 import { CreateChannelDTO, UserRoomDTO } from './channel.dto';
+import { Channel } from './channel.entity';
 import { Audience } from '../audiences/audience.entity';
 
 @Injectable()
@@ -10,6 +10,7 @@ export class ChannelService {
   constructor(
     @InjectRepository(Channel)
     private readonly channelRepository: Repository<Channel>,
+    @InjectRepository(Audience)
     private readonly audienceRepository: Repository<Audience>
   ) {}
 

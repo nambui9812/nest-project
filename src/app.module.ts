@@ -4,8 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import entities from './configs/db';
+import { AuthModule } from './auth/auth.module';
 import { UserModule } from './users/user.module';
-import { MemberModule } from './members/member.module';
 import { RoomModule } from './rooms/room.module';
 import { ChannelModule } from './channels/channel.module';
 
@@ -22,8 +22,8 @@ import { ChannelModule } from './channels/channel.module';
       entities: [...entities],
       synchronize: true
     }),
+    AuthModule,
     UserModule,
-    MemberModule,
     RoomModule,
     ChannelModule
   ],

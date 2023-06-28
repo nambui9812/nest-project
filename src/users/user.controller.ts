@@ -1,30 +1,33 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDTO } from './user.dto';
+import { Public } from '../configs/auth';
 
 @Controller('users')
 export class UserController {
 	constructor(private readonly userService: UserService) {}
 
+	@Public()
 	@Get()
 	async getAll() {
 		const users = await this.userService.findAll();
 		return users;
 	}
 
-	@Get('/:id')
+	@Get(':id')
 	async getById(@Param('id') id: number) {
 		const foundUser = await this.userService.findById(id);
 		return foundUser;
 	}
 
+	@Public()
 	@Post()
 	async signUp(@Body() createUserDTO: CreateUserDTO) {
 		const newUser = await this.userService.create(createUserDTO);
 		return newUser;
 	}
 
-	@Delete('/:id')
+	@Delete(':id')
 	async deleteById(@Param('id') id: number) {
 		await this.userService.deleteById(id);
 		return {

@@ -12,7 +12,7 @@ export class ChannelController {
     return channels;
   }
 
-  @Get(':/id')
+  @Get(':id')
   async getById(@Param('id') id: number) {
     const foundChannel = await this.channelService.findById(id);
     return foundChannel;
@@ -24,7 +24,7 @@ export class ChannelController {
     return newChannel;
   }
 
-  @Delete('/:id')
+  @Delete(':id')
   async DeleteQueryBuilder(@Param('id') id: number) {
     await this.channelService.deleteById(id);
     return {
