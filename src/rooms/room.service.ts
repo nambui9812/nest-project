@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { v4 } from 'uuid';
+import { CreateRoomDTO } from './room.dto';
 import { Room } from './room.entity';
-import { CreateRoomDTO, UserRoomDTO } from './room.dto';
-import { Member, ROLE } from '../members/member.entity';
+import { Member, ROLE, STATUS } from '../members/member.entity';
+import { AuthUser } from 'src/configs/auth';
+import { relative } from 'path';
 
 @Injectable()
 export class RoomService {
@@ -19,78 +21,112 @@ export class RoomService {
 		return this.roomRepository.find();
 	}
 
-	async findById(id: number): Promise<Room> {
-		const foundRoom = await this.roomRepository.findOne({
-			where: { id }
+  async findAndJoinById(currentUser: AuthUser, id: number) {
+    const foundRoom = await this.roomRepository.findOne({
+			where: { id },
+      relations: { members: true }
 		});
 
-		if (!foundRoom) throw new Error('Room not found');
-		return foundRoom;
-	}
+		if (!foundRoom) throw new NotFoundException('Room not found');
 
-  async findByUrl(url: string): Promise<Room> {
-		const foundRoom = await this.roomRepository.findOne({
-			where: { url }
+    const members = foundRoom.members.filter((member) => member.userId === currentUser.sub);
+
+    if (members.length === 0) {
+      await this.memberRepository.save({
+        role: ROLE.user,
+        status: STATUS.active,
+        userId: currentUser.sub,
+        roomId: id
+      });
+
+      return foundRoom;
+    }
+
+    const currentMember = members[0];
+
+    if (currentMember.status === STATUS.banned) throw new UnauthorizedException('Was banned');
+    return foundRoom;
+  }
+
+  async findAndJoinByUrl(currentUser: AuthUser, url: string) {
+    const foundRoom = await this.roomRepository.findOne({
+			where: { url },
+      relations: { members: true }
 		});
 
-		if (!foundRoom) throw new Error('Room not found');
-		return foundRoom;
-	}
+		if (!foundRoom) throw new NotFoundException('Room not found');
 
-	async create(createRoomDto: CreateRoomDTO): Promise<Room> {
-    const { userId, name } = createRoomDto;
+    const members = foundRoom.members.filter((member) => member.userId === currentUser.sub);
 
-    const newRoom = await this.roomRepository.save({ name, url: v4() });
+    if (members.length === 0) {
+      await this.memberRepository.save({
+        role: ROLE.user,
+        status: STATUS.active,
+        userId: currentUser.sub,
+        roomId: foundRoom.id
+      });
 
-    await this.memberRepository.save({
+      return foundRoom;
+    }
+
+    const currentMember = members[0];
+
+    if (currentMember.status === STATUS.banned) throw new UnauthorizedException('Was banned');
+    return foundRoom;
+  }
+
+	async create(currentUser: AuthUser, createRoomDto: CreateRoomDTO): Promise<Room> {
+    const userId = currentUser.sub;
+    const { name, description } = createRoomDto;
+
+    const newRoom = await this.roomRepository.save({ name, description, url: v4() });
+
+    const newMember = {
       role: ROLE.owner,
+      status: STATUS.active,
       userId,
-      room_id: newRoom.id
-    });
+      roomId: newRoom.id
+    }
+
+    await this.memberRepository.save(newMember);
 
 		return newRoom;
 	}
 
-	async deleteById(id: number) {
-		const foundRoom = await this.findById(id);
-    
-    const foundMember = await this.memberRepository.findOne({
-      where: { roomId: id }
+	async deleteById(currentUser: AuthUser, id: number) {
+		const foundRoom = await this.roomRepository.findOne({
+      where: { id },
+      relations: { members: true }
     });
 
-    await this.memberRepository.remove(foundMember);
+    const role = foundRoom.members.filter((member) => member.userId === currentUser.sub)[0].role;
 
+    if (role != ROLE.owner) throw new UnauthorizedException('Not own');
+
+    await this.memberRepository.remove(foundRoom.members);
 		return this.roomRepository.remove(foundRoom);
 	}
 
-  async joinRoom(userRoomDto: UserRoomDTO) {
-    const { userId, roomId } = userRoomDto;
-
-    // Check if already join
-    const foundMember = await this.memberRepository.findOne({
-      where: { userId, roomId }
+  async leaveRoomById(currentUser: AuthUser, id: number) {
+    const foundRoom = await this.roomRepository.findOne({
+      where: { id },
+      relations: { members: true }
     });
 
-    if (foundMember) return;
+    if (!foundRoom) throw new NotFoundException('Room not found');
 
-    return this.memberRepository.save({
-      userId,
-      roomId
-    });
+    const members = foundRoom.members.filter((member) => member.userId === currentUser.sub);
+
+    if (members.length === 0) throw new NotFoundException('Not join yet');
+
+    const currentMember = members[0];
+
+    if (currentMember.status === STATUS.banned) throw new UnauthorizedException('Was banned');
+
+    return this.memberRepository.remove(currentMember);
   }
 
-  async leaveRoom(userRoomDto: UserRoomDTO) {
-    const { userId, roomId } = userRoomDto;
-
-    // Check if already join
-    const foundMember = await this.memberRepository.findOne({
-      where: { userId, roomId }
-    });
-
-    if (!foundMember) return;
-
-    return this.memberRepository.remove(foundMember);
-  }
+  // TODO: Need to rewrite all
 
   async findRoomsByUserId(userId: number) {
     const foundMembers = await this.memberRepository.find({
@@ -112,7 +148,7 @@ export class RoomService {
 
   async findRoomsAsAdminByUserId(userId: number) {
     const foundMembers = await this.memberRepository.find({
-      where: { role: ROLE.admin, userId },
+      where: { role: ROLE.mod, userId },
       relations: { room: true }
     });
 
@@ -148,7 +184,7 @@ export class RoomService {
 
   async findAdminsByRoomId(roomId: number) {
     const foundMember = await this.memberRepository.find({
-      where: { role: ROLE.admin, roomId },
+      where: { role: ROLE.mod, roomId },
       relations: { user: true }
     });
 

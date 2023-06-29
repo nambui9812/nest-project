@@ -1,6 +1,6 @@
 export interface CreateRoomDTO {
-  userId: number;
   name: string;
+  description: string;
 }
 
 export interface UserRoomDTO {

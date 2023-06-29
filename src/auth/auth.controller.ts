@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post, Request } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { SignInDTO } from './auth.dto';
 import { AuthService } from './auth.service';
 import { Public } from '../configs/auth';
@@ -17,7 +18,7 @@ export class AuthController {
   }
 
   @Get('user')
-  async getUser(@Request() req) {
+  async getUser(@Req() req: Request) {
     return req['user'];
   }
 }

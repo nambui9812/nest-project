@@ -1,5 +1,6 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Channel } from '../channels/channel.entity';
+import { Member } from '../members/member.entity';
 
 @Entity({ name: 'rooms' })
 export class Room {
@@ -14,6 +15,9 @@ export class Room {
 
   @Column()
   url: string;
+
+  @OneToMany(() => Member, (member) => member.room)
+  members: Member[];
 
   @OneToMany(() => Channel, (channel) => channel.room)
   channels: Channel[];
